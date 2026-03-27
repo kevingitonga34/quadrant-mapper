@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDIN 5140: Level 1 & 2 Quadrant Mapper</title>
+    <style>
+        :root {
+            --webster-blue: #003567;
+            --webster-yellow: #FFD200;
+            --bg: #f8fafc;
+            --border: #e2e8f0;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            user-select: none;
+        }
+
+        .container {
+            max-width: 950px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.1);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        header {
+            background-color: var(--webster-blue);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 { margin: 0; font-size: 1.2rem; }
+        .week-tag { background: var(--webster-yellow); color: var(--webster-blue); padding: 2px 10px; border-radius: 4px; font-weight: 800; font-size: 0.7rem; text-transform: uppercase; }
+
+        .instruction-bar {
+            background: #eff6ff;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            height: 600px;
+        }
+
+        /* Sidebar for Items */
+        .sidebar {
+            background: #f1f5f9;
+            padding: 1rem;
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+        }
+
+        .sidebar h3 { font-size: 0.8rem; text-transform: uppercase; color: #64748b; margin-top: 0; }
+
+        .eval-item {
+            background: white;
+            border: 1px solid var(--border);
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: grab;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .eval-item:hover { border-color: var(--webster-blue); transform: translateY(-2px); }
+        .eval-item.dragging { opacity: 0.5; }
+        .eval-item.placed { background: #e2e8f0; color: #94a3b8; cursor: default; pointer-events: none; border-style: dashed; }
+
+        /* The Quadrant Map */
+        .map-area {
+            position: relative;
+            background: #fff;
+            padding: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .quadrant-grid {
+            position: relative;
+            width: 500px;
+            height: 500px;
+            border: 2px solid #cbd5e1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        /* Axes Labels */
+        .axis-label {
+            position: absolute;
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #94a3b8;
+            letter-spacing: 1px;
+        }
+        .label-top { top: 10px; left: 50%; transform: translateX(-50%); color: var(--webster-blue); }
+        .label-bottom { bottom: 10px; left: 50%; transform: translateX(-50%); }
+        .label-left { left: -30px; top: 50%; transform: rotate(-90deg) translateX(50%); transform-origin: left top; }
+        .label-right { right: -60px; top: 50%; transform: rotate(90deg) translateX(-50%); transform-origin: right top; color: var(--webster-blue); }
+
+        .quadrant {
+            border: 1px dashed #f1f5f9;
+            position: relative;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            padding: 10px;
+            gap: 8px;
+        }
+
+        .quadrant:nth-child(1) { background-color: #f8fafc; } /* Top Left */
+        .quadrant:nth-child(2) { background-color: #fffbeb; } /* Top Right */
+        .quadrant:nth-child(3) { background-color: #fff; }    /* Bottom Left */
+        .quadrant:nth-child(4) { background-color: #f8fafc; } /* Bottom Right */
+
+        .quadrant-name {
+            position: absolute;
+            font-size: 0.6rem;
+            color: #cbd5e1;
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        .placed-chip {
+            background: var(--webster-blue);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            max-width: 180px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+        }
+
+        @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .footer-nav {
+            background: #f8fafc;
+            padding: 1rem 2rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            font-size: 0.85rem;
+        }
+
+        .btn-reset { background: #e2e8f0; color: #475569; }
+        .btn-print { background: var(--webster-blue); color: white; }
+
+        .app-footer {
+            text-align: right;
+            font-size: 10px;
+            font-style: italic;
+            color: #94a3b8;
+            padding: 1rem 2rem;
+        }
+
+        /* Tooltip for the Quadrant Meaning */
+        .quad-tooltip {
+            position: absolute;
+            bottom: -35px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: var(--webster-blue);
+        }
+
+        @media print {
+            .sidebar, .instruction-bar, .footer-nav { display: none !important; }
+            .container { box-shadow: none; border: none; }
+            .workspace { display: block; height: auto; }
+            .map-area { padding: 0; margin-top: 50px; }
+            .quadrant-grid { width: 650px; height: 650px; margin: 0 auto; }
+            .placed-chip { background: #eee !important; color: black !important; border: 1px solid black; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Level 1 & 2 Quadrant Mapper</h1>
+        <div class="week-tag">Week 3 Activity</div>
+    </header>
+
+    <div class="instruction-bar">
+        <strong>Task Instructions:</strong>
+        <ol style="margin: 10px 0; padding-left: 20px;">
+            <li>Evaluate the survey items listed in the sidebar.</li>
+            <li>Drag and drop each item onto the map based on its <strong>Kirkpatrick Level</strong> (Horizontal Axis) and its <strong>Strategic Value</strong> (Vertical Axis).</li>
+            <li>Note: Strategic Value refers to data that predicts on-the-job performance (Relevance, Confidence, Commitment).</li>
+            <li>Once complete, capture your mapped strategy to share in the discussion forum.</li>
+        </ol>
+        <div style="font-size:0.85rem; color:#64748b; font-style: italic;">
+            Goal: Populate the top quadrants to align with a New World Kirkpatrick Evaluation strategy.
+        </div>
+    </div>
+
+    <div class="workspace">
+        <div class="sidebar" id="sidebar">
+            <h3>Evaluation Items</h3>
+            <div class="eval-item" draggable="true" data-id="1">"The training room temperature was comfortable."</div>
+            <div class="eval-item" draggable="true" data-id="2">"The material is directly relevant to my daily job duties."</div>
+            <div class="eval-item" draggable="true" data-id="3">"I am confident I can perform the new tasks correctly."</div>
+            <div class="eval-item" draggable="true" data-id="4">"List the three steps of the safety protocol."</div>
+            <div class="eval-item" draggable="true" data-id="5">"I plan to use at least one strategy in the next 48 hours."</div>
+            <div class="eval-item" draggable="true" data-id="6">"I am committed to applying this skill starting Monday."</div>
+            <div class="eval-item" draggable="true" data-id="7">"The instructor was engaging and used humor effectively."</div>
+            <div class="eval-item" draggable="true" data-id="8">"The lunch options provided were high quality."</div>
+            <div class="eval-item" draggable="true" data-id="9">"Identify the correct icon for the cloud save feature."</div>
+        </div>
+
+        <div class="map-area">
+            <div class="axis-label label-top">High Strategic Value (Performance Predictors)</div>
+            <div class="axis-label label-bottom">Low Strategic Value (Satisfaction/Recall Only)</div>
+            <div class="axis-label label-left">Level 1: Reaction</div>
+            <div class="axis-label label-right">Level 2: Learning</div>
+
+            <div class="quadrant-grid">
+                <div class="quadrant" id="quad-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="quadrant-name">Q1: High Impact Reaction</div>
+                </div>
+                <div class="quadrant" id="quad-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="quadrant-name">Q2: High Impact Learning</div>
+                </div>
+                <div class="quadrant" id="quad-3" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="quadrant-name">Q3: Traditional Reaction</div>
+                </div>
+                <div class="quadrant" id="quad-4" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="quadrant-name">Q4: Traditional Learning</div>
+                </div>
+            </div>
+            
+            <div class="quad-tooltip">Reflect: How many items moved into the "High Value" top row?</div>
+        </div>
+    </div>
+
+    <div class="footer-nav">
+        <button class="btn btn-reset" onclick="location.reload()">Reset Map</button>
+        <div style="font-size: 0.75rem; color: #94a3b8; font-weight: bold; text-align: center;">
+            Share your results in the Week 3 Discussion Forum.
+        </div>
+        <button class="btn btn-print" onclick="window.print()">Capture for Discussion</button>
+    </div>
+
+    <div class="app-footer">
+        created by Dr. Basiyr D. Rodney for EDIN 5140 Spring 2026
+    </div>
+</div>
+
+<script>
+    const items = document.querySelectorAll('.eval-item');
+    const quadrants = document.querySelectorAll('.quadrant');
+
+    items.forEach(item => {
+        item.addEventListener('dragstart', dragStart);
+        item.addEventListener('dragend', dragEnd);
+    });
+
+    function allowDrop(e) {
+        e.preventDefault();
+    }
+
+    function dragStart(e) {
+        e.dataTransfer.setData('text/plain', e.target.innerText);
+        e.dataTransfer.setData('source-id', e.target.getAttribute('data-id'));
+        e.target.classList.add('dragging');
+    }
+
+    function dragEnd(e) {
+        e.target.classList.remove('dragging');
+    }
+
+    function drop(e) {
+        e.preventDefault();
+        const data = e.dataTransfer.getData('text/plain');
+        const id = e.dataTransfer.getData('source-id');
+        const targetQuad = e.target.closest('.quadrant');
+        
+        if (targetQuad) {
+            // Create a chip in the quadrant
+            const chip = document.createElement('div');
+            chip.className = 'placed-chip';
+            chip.innerText = data;
+            chip.onclick = function() {
+                this.remove();
+                document.querySelector(`.eval-item[data-id="${id}"]`).classList.remove('placed');
+            };
+            
+            targetQuad.appendChild(chip);
+
+            // Mark sidebar item as placed
+            const originalItem = document.querySelector(`.eval-item[data-id="${id}"]`);
+            originalItem.classList.add('placed');
+        }
+    }
+</script>
+
+</body>
+</html>
