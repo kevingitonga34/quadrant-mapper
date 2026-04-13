@@ -39,6 +39,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         header h1 { margin: 0; font-size: 1.2rem; }
@@ -52,10 +54,27 @@
             line-height: 1.5;
         }
 
+        /* FIX 1: workspace stacks vertically on narrow screens */
         .workspace {
             display: grid;
             grid-template-columns: 280px 1fr;
-            height: 600px;
+            min-height: 600px;
+        }
+
+        @media (max-width: 700px) {
+            .workspace {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto;
+            }
+            .sidebar {
+                border-right: none !important;
+                border-bottom: 1px solid var(--border);
+                max-height: 220px;
+            }
+            .map-area {
+                padding: 20px 10px 50px !important;
+                overflow-x: auto;
+            }
         }
 
         /* Sidebar for Items */
@@ -92,16 +111,32 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            /* FIX 2: allow horizontal scroll if quadrant still overflows */
+            overflow-x: auto;
+            overflow-y: visible;
         }
 
+        /* FIX 3: quadrant grid uses min() so it scales down but never
+           forces overflow on narrow viewports */
         .quadrant-grid {
             position: relative;
-            width: 500px;
-            height: 500px;
+            /* scales with available space, caps at 500px */
+            width: min(500px, calc(100vw - 340px));
+            height: min(500px, calc(100vw - 340px));
+            min-width: 280px;
+            min-height: 280px;
             border: 2px solid #cbd5e1;
             display: grid;
             grid-template-columns: 1fr 1fr;
             grid-template-rows: 1fr 1fr;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 700px) {
+            .quadrant-grid {
+                width: min(500px, calc(100vw - 60px));
+                height: min(500px, calc(100vw - 60px));
+            }
         }
 
         /* Axes Labels */
@@ -112,11 +147,35 @@
             text-transform: uppercase;
             color: #94a3b8;
             letter-spacing: 1px;
+            white-space: nowrap;
         }
-        .label-top { top: 10px; left: 50%; transform: translateX(-50%); color: var(--webster-blue); }
-        .label-bottom { bottom: 10px; left: 50%; transform: translateX(-50%); }
-        .label-left { left: -30px; top: 50%; transform: rotate(-90deg) translateX(50%); transform-origin: left top; }
-        .label-right { right: -60px; top: 50%; transform: rotate(90deg) translateX(-50%); transform-origin: right top; color: var(--webster-blue); }
+        .label-top {
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--webster-blue);
+        }
+        .label-bottom {
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        /* FIX 4: left/right axis labels repositioned so they never
+           clip outside the map-area on narrow screens */
+        .label-left {
+            left: 6px;
+            top: 50%;
+            transform: translateY(-50%) rotate(-90deg);
+            transform-origin: center center;
+            color: #64748b;
+        }
+        .label-right {
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%) rotate(90deg);
+            transform-origin: center center;
+            color: var(--webster-blue);
+        }
 
         .quadrant {
             border: 1px dashed #f1f5f9;
@@ -128,10 +187,10 @@
             gap: 8px;
         }
 
-        .quadrant:nth-child(1) { background-color: #f8fafc; } /* Top Left */
-        .quadrant:nth-child(2) { background-color: #fffbeb; } /* Top Right */
-        .quadrant:nth-child(3) { background-color: #fff; }    /* Bottom Left */
-        .quadrant:nth-child(4) { background-color: #f8fafc; } /* Bottom Right */
+        .quadrant:nth-child(1) { background-color: #f8fafc; }
+        .quadrant:nth-child(2) { background-color: #fffbeb; }
+        .quadrant:nth-child(3) { background-color: #fff; }
+        .quadrant:nth-child(4) { background-color: #f8fafc; }
 
         .quadrant-name {
             position: absolute;
@@ -162,6 +221,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .btn {
@@ -184,24 +245,24 @@
             padding: 1rem 2rem;
         }
 
-        /* Tooltip for the Quadrant Meaning */
         .quad-tooltip {
             position: absolute;
-            bottom: -35px;
+            bottom: -30px;
             left: 0;
             right: 0;
             text-align: center;
             font-size: 0.75rem;
             font-weight: bold;
             color: var(--webster-blue);
+            white-space: nowrap;
         }
 
         @media print {
             .sidebar, .instruction-bar, .footer-nav { display: none !important; }
             .container { box-shadow: none; border: none; }
-            .workspace { display: block; height: auto; }
+            .workspace { display: block; min-height: auto; }
             .map-area { padding: 0; margin-top: 50px; }
-            .quadrant-grid { width: 650px; height: 650px; margin: 0 auto; }
+            .quadrant-grid { width: 650px !important; height: 650px !important; margin: 0 auto; }
             .placed-chip { background: #eee !important; color: black !important; border: 1px solid black; }
         }
     </style>
@@ -261,7 +322,7 @@
                     <div class="quadrant-name">Q4: Traditional Learning</div>
                 </div>
             </div>
-            
+
             <div class="quad-tooltip">Reflect: How many items moved into the "High Value" top row?</div>
         </div>
     </div>
@@ -281,7 +342,6 @@
 
 <script>
     const items = document.querySelectorAll('.eval-item');
-    const quadrants = document.querySelectorAll('.quadrant');
 
     items.forEach(item => {
         item.addEventListener('dragstart', dragStart);
@@ -307,9 +367,8 @@
         const data = e.dataTransfer.getData('text/plain');
         const id = e.dataTransfer.getData('source-id');
         const targetQuad = e.target.closest('.quadrant');
-        
+
         if (targetQuad) {
-            // Create a chip in the quadrant
             const chip = document.createElement('div');
             chip.className = 'placed-chip';
             chip.innerText = data;
@@ -317,10 +376,9 @@
                 this.remove();
                 document.querySelector(`.eval-item[data-id="${id}"]`).classList.remove('placed');
             };
-            
+
             targetQuad.appendChild(chip);
 
-            // Mark sidebar item as placed
             const originalItem = document.querySelector(`.eval-item[data-id="${id}"]`);
             originalItem.classList.add('placed');
         }
